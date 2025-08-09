@@ -1,11 +1,4 @@
-/***********************************************************
- * WhatsApp-like Chat Backend Server (Node.js + Express + MongoDB)
- ***********************************************************/
-
-// Load environment variables from `.env` file
 require("dotenv").config();
-
-// Imports
 const express = require("express");
 const http = require("http");
 const { MongoClient } = require("mongodb");
@@ -13,21 +6,16 @@ const { Server } = require("socket.io");
 const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
-const fetch = require("node-fetch");
+const fetch = require("node-fetch"); // v2 for CommonJS
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
-// ✅ MONGODB ENV CHECK
-const MONGODB_URI = process.env.MONGODB_URI;
-if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI is not set in environment variables");
-  process.exit(1); // Stop the server if missing
-}
-
+const MONGODB_URI = process.env.MONGODB_URI || "your_mongodb_connection_string";
 const DB_NAME = "whatsapp";
 const COLLECTION_NAME = "processed_messages";
 const PAYLOADS_DIR = path.join(__dirname, "payloads");
@@ -37,32 +25,23 @@ app.use(express.json({ limit: "10mb" }));
 
 let collection;
 
-// Connect to MongoDB
 async function connectMongo() {
-  try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    const db = client.db(DB_NAME);
-    collection = db.collection(COLLECTION_NAME);
-    await collection.createIndex({ message_id: 1 }, { unique: true });
-    console.log("✅ Connected to MongoDB");
-  } catch (err) {
-    console.error("❌ MongoDB connection error:", err);
-    process.exit(1);
-  }
+  const client = new MongoClient(MONGODB_URI);
+  await client.connect();
+  const db = client.db(DB_NAME);
+  collection = db.collection(COLLECTION_NAME);
+  await collection.createIndex({ message_id: 1 }, { unique: true });
+  console.log("Connected to MongoDB");
 }
 connectMongo();
 
-// WebSocket handling
 io.on("connection", (socket) => {
   socket.on("typing", (waId) => {
     socket.broadcast.emit("typing", waId);
   });
 });
 
-// ===== API ROUTES =====
-
-// Get all users with last message info
+// ✅ FIXED: Return last message details (type/text/fileName/timestamp) for each chat
 app.get("/api/users", async (req, res) => {
   try {
     const users = await collection
@@ -98,7 +77,6 @@ app.get("/api/users", async (req, res) => {
   }
 });
 
-// Get messages for a user
 app.get("/api/messages/:wa_id", async (req, res) => {
   try {
     const waId = req.params.wa_id;
@@ -107,27 +85,22 @@ app.get("/api/messages/:wa_id", async (req, res) => {
       .sort({ timestamp: 1 })
       .project({ _id: 0 })
       .toArray();
-
     messages.forEach((m) => (m.waId = m.wa_id));
-
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch messages" });
   }
 });
 
-// Send a message
 app.post("/api/messages", async (req, res) => {
   const { waId, from, text, contact_name, type, fileUrl, fileName } = req.body;
   if (!waId || !from || (!text && !fileUrl)) {
     return res.status(400).json({ error: "Missing required fields" });
   }
-
-  const messageId = `msg-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+  const messageId = `msg-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
   const timestamp = Date.now();
-
   const doc = {
-    wa_id: waId,
+    wa_id: waId, // always contact's wa_id to group correctly!
     waId,
     contact_name: contact_name || null,
     message_id: messageId,
@@ -140,7 +113,6 @@ app.post("/api/messages", async (req, res) => {
     status: "sent",
     createdAt: new Date(),
   };
-
   try {
     await collection.insertOne(doc);
     io.emit("new_message", doc);
@@ -153,14 +125,12 @@ app.post("/api/messages", async (req, res) => {
   }
 });
 
-// Delete a message
 app.delete("/api/messages/:message_id", async (req, res) => {
+  const messageId = req.params.message_id;
   try {
-    const result = await collection.deleteOne({
-      message_id: req.params.message_id,
-    });
+    const result = await collection.deleteOne({ message_id: messageId });
     if (result.deletedCount === 1) {
-      io.emit("message_deleted", req.params.message_id);
+      io.emit("message_deleted", messageId);
       res.json({ success: true });
     } else {
       res.status(404).json({ error: "Message not found" });
@@ -170,17 +140,16 @@ app.delete("/api/messages/:message_id", async (req, res) => {
   }
 });
 
-// Delete all messages for a user
 app.delete("/api/users/:wa_id", async (req, res) => {
   try {
-    const result = await collection.deleteMany({ wa_id: req.params.wa_id });
+    const waId = req.params.wa_id;
+    const result = await collection.deleteMany({ wa_id: waId });
     res.json({ deletedCount: result.deletedCount });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete chat" });
   }
 });
 
-// Webhook endpoint
 app.post("/api/webhook", async (req, res) => {
   const payload = req.body;
   try {
@@ -189,12 +158,10 @@ app.post("/api/webhook", async (req, res) => {
     }
     const value = payload.metaData.entry[0].changes[0].value;
 
-    // Incoming messages
     if (Array.isArray(value.messages)) {
       for (const msg of value.messages) {
         const exists = await collection.findOne({ message_id: msg.id });
         if (exists) continue;
-
         const doc = {
           wa_id: value.contacts?.[0]?.wa_id || null,
           waId: value.contacts?.[0]?.wa_id || null,
@@ -215,7 +182,6 @@ app.post("/api/webhook", async (req, res) => {
       }
     }
 
-    // Status updates
     if (Array.isArray(value.statuses)) {
       for (const s of value.statuses) {
         const msgId = s.id || s.meta_msg_id;
@@ -236,21 +202,22 @@ app.post("/api/webhook", async (req, res) => {
   }
 });
 
-// Process local sample payloads
 app.post("/api/process-sample-payloads", async (req, res) => {
   try {
     const files = fs
       .readdirSync(PAYLOADS_DIR)
       .filter((f) => f.endsWith(".json"));
     for (const file of files) {
-      const payload = JSON.parse(
-        fs.readFileSync(path.join(PAYLOADS_DIR, file), "utf8")
+      const raw = fs.readFileSync(path.join(PAYLOADS_DIR, file), "utf8");
+      const payload = JSON.parse(raw);
+      await fetch(
+        "http://localhost:" + (process.env.PORT || 3000) + "/api/webhook",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" },
+        }
       );
-      await fetch(`http://localhost:${process.env.PORT || 3000}/api/webhook`, {
-        method: "POST",
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
-      });
     }
     res.json({ processedCount: files.length });
   } catch (err) {
@@ -258,8 +225,7 @@ app.post("/api/process-sample-payloads", async (req, res) => {
   }
 });
 
-// Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

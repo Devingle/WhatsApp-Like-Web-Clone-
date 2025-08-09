@@ -1,29 +1,11 @@
-/***********************************************************
- * Chat UI (React + Material UI + Socket.io)
- * --------------------------------------------------------
- * This is the frontend for our WhatsApp-like chat system.
- * It works with the backend we documented earlier.
- *
- * Key technologies:
- *  - React hooks (useState, useEffect, useMemo, useCallback, useRef)
- *  - Material UI (MUI) for UI components and theming
- *  - socket.io-client for real-time updates
- *  - REST API (fetch) to talk to backend
- ***********************************************************/
-
-// React Imports
 import React, {
-  useState, // to manage component state
-  useEffect, // to run side effects (fetch data, sockets)
-  useRef, // to reference DOM nodes (file input, scroll)
-  useMemo, // memoize values to prevent unnecessary calculations
-  useCallback, // memoize function references
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
 } from "react";
-
-// Connect to backend WebSocket server
 import { io } from "socket.io-client";
-
-// Material UI component imports
 import {
   AppBar,
   Toolbar,
@@ -55,8 +37,6 @@ import {
   ThemeProvider,
   createTheme,
 } from "@mui/material";
-
-// Material UI Icon imports
 import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
@@ -72,27 +52,21 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 
-// Where our backend server is running
 const API_BASE_URL = "http://localhost:3000";
 
-/*----------------------------------------------------------
-  Utility Functions
-----------------------------------------------------------*/
-
-// Get initials for user avatar (e.g., "John Doe" -> "JD")
+// Utility functions
 const getInitials = (name, waId) =>
   name
     ? name
         .split(" ")
-        .map((w) => w[0]) // Take first letter of each word
+        .map((w) => w[0])
         .join("")
-        .slice(0, 2) // Use at most 2 letters
+        .slice(0, 2)
         .toUpperCase()
     : waId
-    ? waId.slice(-2).toUpperCase() // fallback: last 2 chars of waId
+    ? waId.slice(-2).toUpperCase()
     : "NA";
 
-// Generate a color based on a string so each avatar is unique
 const stringToColor = (str = "") => {
   let hash = 0;
   for (let i = 0; i < str.length; i++)
@@ -105,14 +79,12 @@ const stringToColor = (str = "") => {
   );
 };
 
-// Show either time (if today), "Yesterday", or date for sidebar
 const formatSidebarDateOrTime = (ts) => {
   if (!ts) return "";
   const date = new Date(ts);
   const today = new Date();
   const yesterday = new Date(Date.now() - 86400000);
   if (date.toDateString() === today.toDateString()) {
-    // Show only time if today
     return date.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
@@ -122,10 +94,8 @@ const formatSidebarDateOrTime = (ts) => {
   if (date.toDateString() === yesterday.toDateString()) {
     return "Yesterday";
   }
-  return date.toLocaleDateString(); // Else show date
+  return date.toLocaleDateString();
 };
-
-// Show only time in HH:MM AM/PM format
 const formatTimeOnly = (ts) => {
   if (!ts) return "";
   const date = new Date(ts);
@@ -136,11 +106,6 @@ const formatTimeOnly = (ts) => {
   });
 };
 
-/*----------------------------------------------------------
-  Custom Components
-----------------------------------------------------------*/
-
-// Message status ticks (sent/delivered/read)
 const StatusTick = ({ status }) => {
   const map = {
     sent: { tick: "✓", color: "gray" },
@@ -159,17 +124,12 @@ const StatusTick = ({ status }) => {
   );
 };
 
-// User avatar with initials and background color
 const UserAvatar = ({ name, waId }) => (
   <Avatar sx={{ bgcolor: stringToColor(waId), userSelect: "none" }}>
     {getInitials(name, waId)}
   </Avatar>
 );
 
-/**
- * ChatItem — single contact in sidebar list
- * Shows: avatar, name, time, last message, unread badge, menu
- */
 function ChatItem({
   user,
   lastMessage,
@@ -182,7 +142,6 @@ function ChatItem({
   const [menuAnchor, setMenuAnchor] = useState(null);
   const open = Boolean(menuAnchor);
   const accentColor = theme.palette.mode === "dark" ? "#81a9db" : "#222";
-
   return (
     <>
       <ListItem
@@ -196,10 +155,12 @@ function ChatItem({
               : "rgba(0,0,0,0.08)"
             : "transparent",
           py: 1,
+          display: "flex",
+          alignItems: "center",
+          wordBreak: "break-word",
         }}
         onClick={onSelect}
       >
-        {/* Avatar + unread */}
         <ListItemAvatar>
           <Badge
             overlap="circular"
@@ -211,8 +172,6 @@ function ChatItem({
             <UserAvatar name={user.name} waId={user.waId} />
           </Badge>
         </ListItemAvatar>
-
-        {/* Name + last message */}
         <ListItemText
           primary={
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
@@ -234,13 +193,9 @@ function ChatItem({
           }
           sx={{ pl: 1 }}
         />
-
-        {/* Unread counter */}
         {!!unread && (
           <Badge badgeContent={unread} color="primary" sx={{ ml: 1 }} />
         )}
-
-        {/* Menu button */}
         <Tooltip title="Options">
           <IconButton
             size="small"
@@ -253,13 +208,14 @@ function ChatItem({
           </IconButton>
         </Tooltip>
       </ListItem>
-
-      {/* Dropdown menu for delete */}
       <Menu
         anchorEl={menuAnchor}
         open={open}
         onClose={() => setMenuAnchor(null)}
         onClick={(e) => e.stopPropagation()}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{ sx: { minWidth: 140 } }}
       >
         <MenuItem
           sx={{ color: "error.main" }}
@@ -275,14 +231,9 @@ function ChatItem({
   );
 }
 
-/**
- * Message — renders a single chat bubble
- * Includes text, images, audio, files
- */
 function Message({ msg, theme, onDelete, selected, onSelect }) {
-  const isOwn = msg.from === "me"; // whether message is mine or from other person
+  const isOwn = msg.from === "me";
   const timeStr = formatTimeOnly(msg.timestamp);
-
   return (
     <Box
       sx={{
@@ -292,8 +243,11 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
         px: 1,
       }}
       onClick={onSelect}
+      tabIndex={0}
+      style={{ cursor: isOwn ? "pointer" : "default" }}
     >
       <Paper
+        elevation={1}
         sx={{
           bgcolor: isOwn
             ? theme.palette.mode === "dark"
@@ -304,9 +258,10 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
           borderRadius: 2,
           maxWidth: "70%",
           wordBreak: "break-word",
+          boxShadow: "0 0 1px rgb(0 0 0 / 0.1)",
+          position: "relative",
         }}
       >
-        {/* Show correct content type */}
         {msg.type === "image" && msg.fileUrl && (
           <img
             src={msg.fileUrl}
@@ -315,11 +270,23 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
           />
         )}
         {msg.type === "audio" && msg.fileUrl && (
-          <audio src={msg.fileUrl} controls style={{ width: "100%" }} />
+          <audio
+            src={msg.fileUrl}
+            controls
+            style={{ width: "100%", marginBottom: 6 }}
+          />
         )}
         {msg.type === "file" && msg.fileUrl && (
-          <Box sx={{ p: 1, bgcolor: "#eee", borderRadius: 1 }}>
-            <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+          <Box sx={{ p: 1, bgcolor: "#eee", borderRadius: 1, mb: 1 }}>
+            <a
+              href={msg.fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                color: theme.palette.primary.main,
+                wordBreak: "break-all",
+              }}
+            >
               <strong>{msg.fileName || "Download file"}</strong>
             </a>
           </Box>
@@ -327,13 +294,12 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
         {(!msg.type || msg.type === "text") && (
           <Typography sx={{ whiteSpace: "pre-wrap" }}>{msg.text}</Typography>
         )}
-
-        {/* Footer: time, status ticks, delete button */}
         <Box
           sx={{
             textAlign: "right",
             fontSize: 10,
             color: "text.secondary",
+            mt: 0.5,
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
@@ -346,6 +312,7 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
             <Tooltip title="Delete this message">
               <IconButton
                 size="small"
+                sx={{ ml: 1 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(msg.message_id);
@@ -361,9 +328,6 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
   );
 }
 
-/**
- * MessageListWithDates — renders messages grouped by date
- */
 function MessageListWithDates({
   messages,
   theme,
@@ -378,7 +342,6 @@ function MessageListWithDates({
     const showDate = lastDate !== msgDateStr;
     lastDate = msgDateStr;
 
-    // Compute label: "Today", "Yesterday", or date
     let dateLabel = msgDateStr;
     const todayStr = new Date().toDateString();
     const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
@@ -416,68 +379,49 @@ function MessageListWithDates({
   });
 }
 
-/*----------------------------------------------------------
-  Main Component — App
-----------------------------------------------------------*/
-
 export default function App() {
-  /**********************
-   * STATE HOOKS
-   **********************/
-  const [users, setUsers] = useState([]); // list of contacts
-  const [messages, setMessages] = useState([]); // all messages in current session
-  const [selectedUser, setSelectedUser] = useState(null); // currently open chat
-  const [sendingText, setSendingText] = useState(""); // message from input
-  const [lastSeenMap, setLastSeenMap] = useState({}); // when each chat was last viewed
-  const [errorMsg, setErrorMsg] = useState(""); // snackbar error message
-  const [typingUser, setTypingUser] = useState(""); // "Typing..." indicator
-  const [searchTerm, setSearchTerm] = useState(""); // filter chats
-  const [newUserDialogOpen, setNewUserDialogOpen] = useState(false); // modal for starting new chat
-  const [newUserInput, setNewUserInput] = useState(""); // input in modal
-  const [darkMode, setDarkMode] = useState(false); // dark/light theme
-  const [premiumAlertOpen, setPremiumAlertOpen] = useState(false); // premium feature notice
-  const [selectedMsgId, setSelectedMsgId] = useState(null); // message selected for delete
+  const [users, setUsers] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [sendingText, setSendingText] = useState("");
+  const [lastSeenMap, setLastSeenMap] = useState({});
+  const [errorMsg, setErrorMsg] = useState("");
+  const [typingUser, setTypingUser] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [newUserDialogOpen, setNewUserDialogOpen] = useState(false);
+  const [newUserInput, setNewUserInput] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
+  const [premiumAlertOpen, setPremiumAlertOpen] = useState(false);
+  const [selectedMsgId, setSelectedMsgId] = useState(null);
 
-  /**********************
-   * REFS
-   **********************/
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const selectedUserRef = useRef(selectedUser); // for socket callbacks
-  const isMobile = useMediaQuery("(max-width:600px)"); // adjust layout
+  const selectedUserRef = useRef(selectedUser);
+  const isMobile = useMediaQuery("(max-width:600px)");
 
-  // Keep ref in sync
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
-  /**********************
-   * THEME
-   **********************/
-  const theme = useMemo(
-    () =>
-      createTheme({
-        palette: {
-          mode: darkMode ? "dark" : "light",
-          ...(darkMode
-            ? {
-                primary: { main: "#29a9db" },
-                background: { default: "#121212", paper: "#222" },
-                text: { primary: "#eee", secondary: "#aaa" },
-              }
-            : {
-                primary: { main: "#1976d2" },
-                background: { default: "#fafafa", paper: "#fff" },
-                text: { primary: "#222", secondary: "#555" },
-              }),
-        },
-      }),
-    [darkMode]
-  );
+  const theme = useMemo(() => {
+    return createTheme({
+      palette: {
+        mode: darkMode ? "dark" : "light",
+        ...(darkMode
+          ? {
+              primary: { main: "#29a9db" },
+              background: { default: "#121212", paper: "#222" },
+              text: { primary: "#eee", secondary: "#aaa" },
+            }
+          : {
+              primary: { main: "#1976d2" },
+              background: { default: "#fafafa", paper: "#fff" },
+              text: { primary: "#222", secondary: "#555" },
+            }),
+      },
+    });
+  }, [darkMode]);
 
-  /**********************
-   * HELPERS
-   **********************/
   const filterUniqueMessages = useCallback((msgs) => {
     const existingIds = new Set();
     return msgs.filter((m) => {
@@ -488,9 +432,6 @@ export default function App() {
     });
   }, []);
 
-  /**********************
-   * DATA FETCH — USERS
-   **********************/
   useEffect(() => {
     async function fetchUsers() {
       try {
@@ -507,9 +448,7 @@ export default function App() {
     fetchUsers();
   }, []);
 
-  /**********************
-   * DATA FETCH — MESSAGES
-   **********************/
+  // Always refetch messages from backend on chat switch
   useEffect(() => {
     if (!selectedUser) {
       setMessages([]);
@@ -529,20 +468,16 @@ export default function App() {
     fetchMessages();
   }, [selectedUser, filterUniqueMessages]);
 
-  // Auto-scroll when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedUser]);
 
-  /**********************
-   * SOCKET.IO — real-time updates
-   **********************/
   useEffect(() => {
     const socket = io(API_BASE_URL, { transports: ["websocket"] });
 
     socket.on("message_status_updated", (updatedMsg) => {
-      setMessages((old) =>
-        old.map((msg) =>
+      setMessages((oldMessages) =>
+        oldMessages.map((msg) =>
           msg.message_id === updatedMsg.message_id
             ? { ...msg, status: updatedMsg.status }
             : msg
@@ -550,25 +485,26 @@ export default function App() {
       );
     });
 
-    socket.on("message_deleted", (deletedId) => {
-      setMessages((old) => old.filter((m) => m.message_id !== deletedId));
+    socket.on("message_deleted", (deletedMessageId) => {
+      setMessages((old) =>
+        old.filter((m) => m.message_id !== deletedMessageId)
+      );
     });
 
     socket.on("new_message", (msg) => {
-      setMessages((old) => {
-        const ids = new Set(old.map((m) => m.message_id));
-        if (ids.has(msg.message_id)) return old;
+      setMessages((oldMessages) => {
+        const ids = new Set(oldMessages.map((m) => m.message_id));
+        if (ids.has(msg.message_id)) return oldMessages;
         if (msg.waId === selectedUserRef.current) {
           setLastSeenMap((old) => ({
             ...old,
             [selectedUserRef.current]: Date.now(),
           }));
-          return [...old, msg];
+          return [...oldMessages, msg];
         }
-        return old;
+        return oldMessages;
       });
 
-      // Update user list last message
       setUsers((oldUsers) => {
         const idx = oldUsers.findIndex((u) => u.waId === msg.waId);
         if (idx !== -1) {
@@ -608,9 +544,10 @@ export default function App() {
     };
   }, []);
 
-  /* Message delete function */
   function deleteMessage(messageId) {
-    fetch(`${API_BASE_URL}/api/messages/${messageId}`, { method: "DELETE" })
+    fetch(`${API_BASE_URL}/api/messages/${messageId}`, {
+      method: "DELETE",
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Delete failed");
         setSelectedMsgId(null);
@@ -619,7 +556,6 @@ export default function App() {
       .catch((e) => setErrorMsg(e.toString()));
   }
 
-  /* Count unread messages for each chat */
   const getUnreadCount = (waId) => {
     const lastSeen = lastSeenMap[waId] || 0;
     return messages.filter(
@@ -627,7 +563,7 @@ export default function App() {
     ).length;
   };
 
-  /* Merge users list & messages list to show latest info in sidebar */
+  // 🚀 SIDEBAR: Always uses backend-provided fields, fallback to local if needed
   const allContacts = useMemo(() => {
     const ids = new Set([
       ...users.map((u) => u.waId || u.wa_id),
@@ -639,16 +575,41 @@ export default function App() {
           waId,
           name: waId,
         };
+
         let lastMsgPreview = "";
         let lastMsgTimestamp = u.lastMessageTimestamp || 0;
-        if ("lastMessageType" in u) {
-          if (u.lastMessageText) lastMsgPreview = u.lastMessageText;
+
+        if (
+          "lastMessageType" in u ||
+          "lastMessageText" in u ||
+          "lastMessageFileName" in u
+        ) {
+          if (u.lastMessageText && u.lastMessageText.trim() !== "")
+            lastMsgPreview = u.lastMessageText;
           else if (u.lastMessageType === "image") lastMsgPreview = "📷 Photo";
           else if (u.lastMessageType === "audio") lastMsgPreview = "🎵 Audio";
           else if (u.lastMessageType === "file")
             lastMsgPreview = `📄 ${u.lastMessageFileName || "File"}`;
-          lastMsgTimestamp = u.lastMessageTimestamp;
+          else lastMsgPreview = "";
+          if (typeof u.lastMessageTimestamp === "number")
+            lastMsgTimestamp = u.lastMessageTimestamp;
+        } else {
+          const lastMsg = messages
+            .filter((m) => m.waId === waId)
+            .reduce((a, b) => (a.timestamp > b.timestamp ? a : b), {
+              timestamp: 0,
+            });
+          if (lastMsg.timestamp) {
+            if (lastMsg.text && lastMsg.text.trim() !== "")
+              lastMsgPreview = lastMsg.text;
+            else if (lastMsg.type === "image") lastMsgPreview = "📷 Photo";
+            else if (lastMsg.type === "audio") lastMsgPreview = "🎵 Audio";
+            else if (lastMsg.type === "file")
+              lastMsgPreview = `📄 ${lastMsg.fileName || "File"}`;
+            lastMsgTimestamp = lastMsg.timestamp;
+          }
         }
+
         return {
           ...u,
           waId,
@@ -659,12 +620,13 @@ export default function App() {
       .filter(
         (u) =>
           !searchTerm ||
-          `${u.name} ${u.waId}`.toLowerCase().includes(searchTerm.toLowerCase())
+          `${u.name ?? ""} ${u.waId ?? ""}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
       )
       .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [users, messages, searchTerm]);
 
-  // Messages for selected user
   const currentMessages = useMemo(
     () =>
       messages
@@ -673,9 +635,10 @@ export default function App() {
     [messages, selectedUser]
   );
 
-  const lastMsgSelected = currentMessages[currentMessages.length - 1] || null;
+  const lastMsgSelected = currentMessages.length
+    ? currentMessages[currentMessages.length - 1]
+    : null;
 
-  /* Send message: Supports text & extra data (file) */
   function sendMessage(extra = null) {
     if ((!sendingText.trim() && !extra) || !selectedUser) return;
     const tempId = `temp-${Date.now()}`;
@@ -702,7 +665,10 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to send message");
+        return res.json();
+      })
       .then((saved) =>
         setMessages((old) =>
           filterUniqueMessages(
@@ -713,7 +679,6 @@ export default function App() {
       .catch((e) => setErrorMsg(e.toString()));
   }
 
-  /* Handle file upload */
   function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -729,29 +694,25 @@ export default function App() {
     e.target.value = null;
   }
 
-  /* Manually start chat */
   function addNewChat() {
     const id = newUserInput.trim();
     if (!id) return;
-    setUsers((old) =>
-      old.find((u) => u.waId === id)
-        ? old
-        : [
-            { waId: id, name: id, lastMessage: "", lastMessageTimestamp: 0 },
-            ...old,
-          ]
-    );
+    setUsers((old) => {
+      if (old.find((u) => u.waId === id)) return old;
+      return [
+        { waId: id, name: id, lastMessage: "", lastMessageTimestamp: 0 },
+        ...old,
+      ];
+    });
+
     setSelectedUser(id);
     setNewUserInput("");
     setNewUserDialogOpen(false);
   }
 
-  /**********************
-   * UI LAYOUT
-   **********************/
   return (
     <ThemeProvider theme={theme}>
-      <CssBaseline /> {/* resets CSS for Material UI theme */}
+      <CssBaseline />
       <Box
         sx={{
           height: "100vh",
@@ -759,24 +720,21 @@ export default function App() {
           fontFamily: "'Segoe UI', Tahoma, Verdana",
         }}
       >
-        {/* Sidebar container */}
+        {/* Sidebar */}
         <Box
           sx={{
-            width: isMobile ? "100%" : 320, // Full width on mobile, fixed on desktop
+            width: isMobile ? "100%" : 320,
             borderRight: 1,
             borderColor: "divider",
             display: "flex",
             flexDirection: "column",
           }}
         >
-          {/* Top AppBar with title and action icons */}
           <AppBar position="static" sx={{ bgcolor: "primary.main" }}>
             <Toolbar>
-              {/* App title text */}
               <Typography variant="h6" sx={{ flexGrow: 1 }}>
                 Chat
               </Typography>
-              {/* Dark mode toggle button with tooltip */}
               <Tooltip
                 title={
                   darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
@@ -786,26 +744,21 @@ export default function App() {
                   color="inherit"
                   size="large"
                   onClick={() => setDarkMode((v) => !v)}
-                  aria-label="Toggle dark mode"
                 >
                   {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
                 </IconButton>
               </Tooltip>
-              {/* Button to open new chat dialog */}
               <Tooltip title="New Chat">
                 <IconButton
                   color="inherit"
                   size="large"
                   onClick={() => setNewUserDialogOpen(true)}
-                  aria-label="Start new chat"
                 >
                   <AddIcon />
                 </IconButton>
               </Tooltip>
             </Toolbar>
           </AppBar>
-
-          {/* Search input in sidebar */}
           <Box sx={{ px: 1, py: 0.5 }}>
             <TextField
               fullWidth
@@ -821,14 +774,10 @@ export default function App() {
                   </InputAdornment>
                 ),
               }}
-              aria-label="Search chats"
             />
           </Box>
-
           <Divider />
-
-          {/* List of chats/contacts */}
-          <List sx={{ flexGrow: 1, overflowY: "auto" }} aria-label="Chat list">
+          <List sx={{ flexGrow: 1, overflowY: "auto" }}>
             {allContacts.map((user) => (
               <ChatItem
                 key={user.waId}
@@ -860,19 +809,16 @@ export default function App() {
             ))}
           </List>
         </Box>
-
-        {/* Chat panel container */}
+        {/* Chat Panel */}
         <Box
           sx={{
             flexGrow: 1,
-            display: isMobile && !selectedUser ? "none" : "flex", // Hide on mobile if no chat selected
+            display: isMobile && !selectedUser ? "none" : "flex",
             flexDirection: "column",
             bgcolor: "background.default",
           }}
-          onClick={() => setSelectedMsgId(null)} // Clicking outside message deselects it
-          aria-live="polite"
+          onClick={() => setSelectedMsgId(null)}
         >
-          {/* Chat header with back button and name */}
           <Box
             sx={{
               bgcolor: "background.paper",
@@ -889,7 +835,7 @@ export default function App() {
               <IconButton
                 onClick={() => setSelectedUser(null)}
                 size="large"
-                aria-label="Back to chats"
+                aria-label="Back"
               >
                 <CloseIcon />
               </IconButton>
@@ -902,21 +848,17 @@ export default function App() {
                 userSelect: "none",
                 color: theme.palette.text.primary,
               }}
-              aria-label="Current chat name"
             >
               {selectedUser
                 ? allContacts.find((c) => c.waId === selectedUser)?.name ||
                   selectedUser
                 : "Select a chat"}
             </Typography>
-
-            {/* Call buttons (disabled - premium) with tooltips */}
             <Tooltip title="Voice Call (Premium)">
               <IconButton
                 disabled={!selectedUser}
                 color="inherit"
                 onClick={() => setPremiumAlertOpen(true)}
-                aria-label="Voice call premium"
               >
                 <CallIcon />
               </IconButton>
@@ -926,14 +868,11 @@ export default function App() {
                 disabled={!selectedUser}
                 color="inherit"
                 onClick={() => setPremiumAlertOpen(true)}
-                aria-label="Video call premium"
               >
                 <VideocamIcon />
               </IconButton>
             </Tooltip>
           </Box>
-
-          {/* Creator credit */}
           <Box
             sx={{
               py: 1,
@@ -942,13 +881,10 @@ export default function App() {
               color: darkMode
                 ? "rgba(129,169,219,0.7)"
                 : "rgba(23,162,184,0.7)",
-              fontSize: 12,
             }}
           >
             Created by <strong>Devingle (Amit Ghanata)</strong>
           </Box>
-
-          {/* Messages container - scrollable list */}
           <Box
             sx={{
               flexGrow: 1,
@@ -956,11 +892,9 @@ export default function App() {
               px: 2,
               position: "relative",
             }}
-            onClick={(e) => e.stopPropagation()} // Prevent deselect on message click
-            aria-label="Messages"
+            onClick={(e) => e.stopPropagation()}
           >
             {!selectedUser ? (
-              // Prompt to choose a chat if none selected
               <Typography
                 sx={{ mt: 15, textAlign: "center", color: "text.secondary" }}
               >
@@ -968,7 +902,6 @@ export default function App() {
               </Typography>
             ) : currentMessages.length === 0 ? (
               lastMsgSelected ? (
-                // Show last message preview if chat is empty
                 <Paper
                   sx={{
                     mx: "auto",
@@ -999,7 +932,6 @@ export default function App() {
                   </Typography>
                 </Paper>
               ) : (
-                // Show no messages text if no chat messages exist
                 <Typography
                   sx={{ mt: 20, textAlign: "center", color: "text.secondary" }}
                 >
@@ -1007,7 +939,6 @@ export default function App() {
                 </Typography>
               )
             ) : (
-              // Render list of messages grouped by date
               <MessageListWithDates
                 messages={currentMessages}
                 theme={theme}
@@ -1016,23 +947,15 @@ export default function App() {
                 setSelectedMsgId={setSelectedMsgId}
               />
             )}
-
-            {/* Invisible div to scroll to bottom */}
             <div ref={messagesEndRef} />
-
-            {/* Typing indicator */}
             {typingUser && (
               <Typography
                 sx={{ pl: 1, fontStyle: "italic", color: "text.secondary" }}
-                aria-live="polite"
-                aria-atomic="true"
               >
                 {typingUser}
               </Typography>
             )}
           </Box>
-
-          {/* Message input area */}
           {selectedUser && (
             <Box
               sx={{
@@ -1045,28 +968,23 @@ export default function App() {
                 borderColor: "divider",
                 bgcolor: "background.paper",
               }}
-              onClick={(e) => e.stopPropagation()} // Prevent deselect on input click
+              onClick={(e) => e.stopPropagation()} // Prevents deselection when using input
             >
-              {/* Hidden file input triggered by attach button */}
               <input
                 type="file"
                 hidden
                 ref={fileInputRef}
                 accept="image/*,audio/*,.zip,.rar,.pdf,.doc,.docx,.txt"
                 onChange={handleFile}
-                aria-label="Attach file"
               />
-              {/* Attach file button */}
               <Tooltip title="Attach file or media">
                 <IconButton
                   color="primary"
                   onClick={() => fileInputRef.current?.click()}
-                  aria-label="Attach file or media"
                 >
                   <AttachFileIcon />
                 </IconButton>
               </Tooltip>
-              {/* Text field for typing message */}
               <TextField
                 multiline
                 variant="outlined"
@@ -1081,39 +999,31 @@ export default function App() {
                     sendMessage();
                   }
                 }}
-                aria-label="Type your message"
               />
-              {/* Voice message button (premium) */}
               <Tooltip title="Record voice message (Premium)">
                 <IconButton
                   color="primary"
                   onClick={() => setPremiumAlertOpen(true)}
-                  aria-label="Voice message premium"
                 >
                   <KeyboardVoiceIcon />
                 </IconButton>
               </Tooltip>
-              {/* Send message button */}
               <Tooltip title="Send message">
                 <IconButton
                   disabled={!sendingText.trim()}
                   color="primary"
                   onClick={() => sendMessage()}
-                  aria-label="Send message"
                 >
                   <SendIcon />
                 </IconButton>
               </Tooltip>
             </Box>
           )}
-
-          {/* Dialog to start a new chat */}
           <Dialog
             open={newUserDialogOpen}
             onClose={() => setNewUserDialogOpen(false)}
-            aria-labelledby="start-new-chat-dialog"
           >
-            <DialogTitle id="start-new-chat-dialog">Start New Chat</DialogTitle>
+            <DialogTitle>Start New Chat</DialogTitle>
             <DialogContent>
               <TextField
                 autoFocus
@@ -1123,7 +1033,6 @@ export default function App() {
                 placeholder="Enter WhatsApp ID"
                 value={newUserInput}
                 onChange={(e) => setNewUserInput(e.target.value)}
-                aria-label="Enter WhatsApp ID"
               />
             </DialogContent>
             <DialogActions>
@@ -1134,30 +1043,21 @@ export default function App() {
                 disabled={!newUserInput.trim()}
                 variant="contained"
                 onClick={addNewChat}
-                aria-disabled={!newUserInput.trim()}
               >
                 Start Chat
               </Button>
             </DialogActions>
           </Dialog>
-
-          {/* Snackbar popup for premium feature alert */}
           <Snackbar
             open={premiumAlertOpen}
             autoHideDuration={2500}
             onClose={() => setPremiumAlertOpen(false)}
             anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
           >
-            <Alert
-              onClose={() => setPremiumAlertOpen(false)}
-              severity="info"
-              sx={{ width: "100%" }}
-            >
+            <Alert onClose={() => setPremiumAlertOpen(false)} severity="info">
               Please buy premium version to use this feature.
             </Alert>
           </Snackbar>
-
-          {/* Snackbar popup for error messages */}
           <Snackbar
             open={!!errorMsg}
             autoHideDuration={4000}
@@ -1168,7 +1068,6 @@ export default function App() {
               onClose={() => setErrorMsg("")}
               severity="error"
               variant="filled"
-              sx={{ width: "100%" }}
             >
               {errorMsg}
             </Alert>
