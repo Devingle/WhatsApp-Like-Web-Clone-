@@ -1,0 +1,31 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1454691000000-xyz789",
+                  "from": "Employer",
+                  "timestamp": 1454691000000,
+                  "text": {
+                    "body": "You are selected. Ab ye bhi bata do ki salary kitti loge"
+                  },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Employer",
+                  "profile": { "name": "Employer" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+# Node modules folder (contains all installed packages)
+node_modules/
+
+# Environment variables file containing sensitive info (database URIs, secrets)
+.env
+
+# Logs (optional, but commonly ignored)
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Optional: any other temporary or build files your backend might generate

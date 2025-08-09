@@ -1,0 +1,31 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1454690400000-xyz789",
+                  "from": "Employer",
+                  "timestamp": 1454690400000,
+                  "text": {
+                    "body": "Mere liye kam karega??"
+                  },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Employer",
+                  "profile": { "name": "Employer" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

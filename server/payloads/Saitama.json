@@ -1,0 +1,31 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1754690400000-xyz789",
+                  "from": "Saitama",
+                  "timestamp": 1754690400000,
+                  "text": {
+                    "body": "Let's go it's workout time."
+                  },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Saitama",
+                  "profile": { "name": "Saitama" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "statuses": [
+                {
+                  "id": "msg-1754695367062-225863",
+                  "status": "delivered",
+                  "timestamp": 1754695367062
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

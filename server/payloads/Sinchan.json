@@ -1,0 +1,31 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1754692200000-abc123",
+                  "from": "Sinchan",
+                  "timestamp": 1754692200000,
+                  "text": {
+                    "body": "I need helppp.. it's urgenttt... please!!!"
+                  },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Sinchan",
+                  "profile": { "name": "Sinchan" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1754832000000-bro",
+                  "from": "Weird Brat",
+                  "timestamp": 1754695142402,
+                  "text": { "body": "Bro!! Lets make some projects...." },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Weird Brat",
+                  "profile": { "name": "Weird Brat" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
