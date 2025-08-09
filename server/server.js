@@ -23,7 +23,8 @@ const PAYLOADS_DIR = path.join(__dirname, "payloads");
 // ===== Middleware =====
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "*",
+    origin:
+      process.env.FRONTEND_URL || "https://whats-app-like-web-clone.vercel.app",
     methods: ["GET", "POST", "DELETE"],
     credentials: true,
   })

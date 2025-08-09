@@ -52,7 +52,7 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
 // Utility functions
 const getInitials = (name, waId) =>
