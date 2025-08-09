@@ -752,435 +752,429 @@ export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline /> {/* resets CSS for Material UI theme */}
-      <Box sx={{ height: "100vh", display: "flex" }}>
-        {/* SIDEBAR */}
-        ...
-        {/* (code truncated for space — same as original structure but now with comments) */}
+      <Box
+        sx={{
+          height: "100vh",
+          display: "flex",
+          fontFamily: "'Segoe UI', Tahoma, Verdana",
+        }}
+      >
+        {/* Sidebar container */}
+        <Box
+          sx={{
+            width: isMobile ? "100%" : 320, // Full width on mobile, fixed on desktop
+            borderRight: 1,
+            borderColor: "divider",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* Top AppBar with title and action icons */}
+          <AppBar position="static" sx={{ bgcolor: "primary.main" }}>
+            <Toolbar>
+              {/* App title text */}
+              <Typography variant="h6" sx={{ flexGrow: 1 }}>
+                Chat
+              </Typography>
+              {/* Dark mode toggle button with tooltip */}
+              <Tooltip
+                title={
+                  darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
+                }
+              >
+                <IconButton
+                  color="inherit"
+                  size="large"
+                  onClick={() => setDarkMode((v) => !v)}
+                  aria-label="Toggle dark mode"
+                >
+                  {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+                </IconButton>
+              </Tooltip>
+              {/* Button to open new chat dialog */}
+              <Tooltip title="New Chat">
+                <IconButton
+                  color="inherit"
+                  size="large"
+                  onClick={() => setNewUserDialogOpen(true)}
+                  aria-label="Start new chat"
+                >
+                  <AddIcon />
+                </IconButton>
+              </Tooltip>
+            </Toolbar>
+          </AppBar>
+
+          {/* Search input in sidebar */}
+          <Box sx={{ px: 1, py: 0.5 }}>
+            <TextField
+              fullWidth
+              placeholder="Search or start chat"
+              size="small"
+              variant="outlined"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="disabled" />
+                  </InputAdornment>
+                ),
+              }}
+              aria-label="Search chats"
+            />
+          </Box>
+
+          <Divider />
+
+          {/* List of chats/contacts */}
+          <List sx={{ flexGrow: 1, overflowY: "auto" }} aria-label="Chat list">
+            {allContacts.map((user) => (
+              <ChatItem
+                key={user.waId}
+                user={user}
+                selected={user.waId === selectedUser}
+                onSelect={() => setSelectedUser(user.waId)}
+                onDelete={() => {
+                  if (window.confirm("Delete chat?")) {
+                    fetch(`${API_BASE_URL}/api/users/${user.waId}`, {
+                      method: "DELETE",
+                    })
+                      .then((res) => {
+                        if (!res.ok) throw new Error("Delete failed");
+                        setUsers((old) =>
+                          old.filter((u) => u.waId !== user.waId)
+                        );
+                        if (selectedUser === user.waId) {
+                          setSelectedUser(null);
+                          setMessages([]);
+                        }
+                      })
+                      .catch((e) => setErrorMsg(e.toString()));
+                  }
+                }}
+                lastMessage={user.lastMessage}
+                unread={getUnreadCount(user.waId)}
+                theme={theme}
+              />
+            ))}
+          </List>
+        </Box>
+
+        {/* Chat panel container */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            display: isMobile && !selectedUser ? "none" : "flex", // Hide on mobile if no chat selected
+            flexDirection: "column",
+            bgcolor: "background.default",
+          }}
+          onClick={() => setSelectedMsgId(null)} // Clicking outside message deselects it
+          aria-live="polite"
+        >
+          {/* Chat header with back button and name */}
+          <Box
+            sx={{
+              bgcolor: "background.paper",
+              borderBottom: 1,
+              borderColor: "divider",
+              display: "flex",
+              alignItems: "center",
+              px: 2,
+              py: 1,
+              gap: 1,
+            }}
+          >
+            {isMobile && (
+              <IconButton
+                onClick={() => setSelectedUser(null)}
+                size="large"
+                aria-label="Back to chats"
+              >
+                <CloseIcon />
+              </IconButton>
+            )}
+            <Typography
+              sx={{
+                flexGrow: 1,
+                fontWeight: "bold",
+                fontSize: 20,
+                userSelect: "none",
+                color: theme.palette.text.primary,
+              }}
+              aria-label="Current chat name"
+            >
+              {selectedUser
+                ? allContacts.find((c) => c.waId === selectedUser)?.name ||
+                  selectedUser
+                : "Select a chat"}
+            </Typography>
+
+            {/* Call buttons (disabled - premium) with tooltips */}
+            <Tooltip title="Voice Call (Premium)">
+              <IconButton
+                disabled={!selectedUser}
+                color="inherit"
+                onClick={() => setPremiumAlertOpen(true)}
+                aria-label="Voice call premium"
+              >
+                <CallIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Video Call (Premium)">
+              <IconButton
+                disabled={!selectedUser}
+                color="inherit"
+                onClick={() => setPremiumAlertOpen(true)}
+                aria-label="Video call premium"
+              >
+                <VideocamIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          {/* Creator credit */}
+          <Box
+            sx={{
+              py: 1,
+              textAlign: "center",
+              userSelect: "none",
+              color: darkMode
+                ? "rgba(129,169,219,0.7)"
+                : "rgba(23,162,184,0.7)",
+              fontSize: 12,
+            }}
+          >
+            Created by <strong>Devingle (Amit Ghanata)</strong>
+          </Box>
+
+          {/* Messages container - scrollable list */}
+          <Box
+            sx={{
+              flexGrow: 1,
+              overflowY: "auto",
+              px: 2,
+              position: "relative",
+            }}
+            onClick={(e) => e.stopPropagation()} // Prevent deselect on message click
+            aria-label="Messages"
+          >
+            {!selectedUser ? (
+              // Prompt to choose a chat if none selected
+              <Typography
+                sx={{ mt: 15, textAlign: "center", color: "text.secondary" }}
+              >
+                Select a chat to start messaging
+              </Typography>
+            ) : currentMessages.length === 0 ? (
+              lastMsgSelected ? (
+                // Show last message preview if chat is empty
+                <Paper
+                  sx={{
+                    mx: "auto",
+                    mt: 20,
+                    maxWidth: 400,
+                    p: 3,
+                    borderRadius: 2,
+                    bgcolor: "background.paper",
+                    color: theme.palette.primary.main,
+                    textAlign: "center",
+                  }}
+                >
+                  <Typography variant="subtitle2" gutterBottom>
+                    Last message:
+                  </Typography>
+                  <Typography>
+                    {lastMsgSelected.text && lastMsgSelected.text.trim() !== ""
+                      ? lastMsgSelected.text.length > 120
+                        ? lastMsgSelected.text.slice(0, 120) + "…"
+                        : lastMsgSelected.text
+                      : lastMsgSelected.type === "image"
+                      ? "📷 Photo"
+                      : lastMsgSelected.type === "audio"
+                      ? "🎵 Audio"
+                      : lastMsgSelected.type === "file"
+                      ? `📄 ${lastMsgSelected.fileName || "File"}`
+                      : ""}
+                  </Typography>
+                </Paper>
+              ) : (
+                // Show no messages text if no chat messages exist
+                <Typography
+                  sx={{ mt: 20, textAlign: "center", color: "text.secondary" }}
+                >
+                  No messages
+                </Typography>
+              )
+            ) : (
+              // Render list of messages grouped by date
+              <MessageListWithDates
+                messages={currentMessages}
+                theme={theme}
+                onDelete={deleteMessage}
+                selectedMsgId={selectedMsgId}
+                setSelectedMsgId={setSelectedMsgId}
+              />
+            )}
+
+            {/* Invisible div to scroll to bottom */}
+            <div ref={messagesEndRef} />
+
+            {/* Typing indicator */}
+            {typingUser && (
+              <Typography
+                sx={{ pl: 1, fontStyle: "italic", color: "text.secondary" }}
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {typingUser}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Message input area */}
+          {selectedUser && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1,
+                py: 1,
+                borderTop: 1,
+                borderColor: "divider",
+                bgcolor: "background.paper",
+              }}
+              onClick={(e) => e.stopPropagation()} // Prevent deselect on input click
+            >
+              {/* Hidden file input triggered by attach button */}
+              <input
+                type="file"
+                hidden
+                ref={fileInputRef}
+                accept="image/*,audio/*,.zip,.rar,.pdf,.doc,.docx,.txt"
+                onChange={handleFile}
+                aria-label="Attach file"
+              />
+              {/* Attach file button */}
+              <Tooltip title="Attach file or media">
+                <IconButton
+                  color="primary"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach file or media"
+                >
+                  <AttachFileIcon />
+                </IconButton>
+              </Tooltip>
+              {/* Text field for typing message */}
+              <TextField
+                multiline
+                variant="outlined"
+                placeholder="Type a message"
+                fullWidth
+                value={sendingText}
+                onChange={(e) => setSendingText(e.target.value)}
+                maxRows={6}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                aria-label="Type your message"
+              />
+              {/* Voice message button (premium) */}
+              <Tooltip title="Record voice message (Premium)">
+                <IconButton
+                  color="primary"
+                  onClick={() => setPremiumAlertOpen(true)}
+                  aria-label="Voice message premium"
+                >
+                  <KeyboardVoiceIcon />
+                </IconButton>
+              </Tooltip>
+              {/* Send message button */}
+              <Tooltip title="Send message">
+                <IconButton
+                  disabled={!sendingText.trim()}
+                  color="primary"
+                  onClick={() => sendMessage()}
+                  aria-label="Send message"
+                >
+                  <SendIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          )}
+
+          {/* Dialog to start a new chat */}
+          <Dialog
+            open={newUserDialogOpen}
+            onClose={() => setNewUserDialogOpen(false)}
+            aria-labelledby="start-new-chat-dialog"
+          >
+            <DialogTitle id="start-new-chat-dialog">Start New Chat</DialogTitle>
+            <DialogContent>
+              <TextField
+                autoFocus
+                fullWidth
+                label="WhatsApp ID"
+                variant="outlined"
+                placeholder="Enter WhatsApp ID"
+                value={newUserInput}
+                onChange={(e) => setNewUserInput(e.target.value)}
+                aria-label="Enter WhatsApp ID"
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setNewUserDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                disabled={!newUserInput.trim()}
+                variant="contained"
+                onClick={addNewChat}
+                aria-disabled={!newUserInput.trim()}
+              >
+                Start Chat
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Snackbar popup for premium feature alert */}
+          <Snackbar
+            open={premiumAlertOpen}
+            autoHideDuration={2500}
+            onClose={() => setPremiumAlertOpen(false)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          >
+            <Alert
+              onClose={() => setPremiumAlertOpen(false)}
+              severity="info"
+              sx={{ width: "100%" }}
+            >
+              Please buy premium version to use this feature.
+            </Alert>
+          </Snackbar>
+
+          {/* Snackbar popup for error messages */}
+          <Snackbar
+            open={!!errorMsg}
+            autoHideDuration={4000}
+            onClose={() => setErrorMsg("")}
+            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          >
+            <Alert
+              onClose={() => setErrorMsg("")}
+              severity="error"
+              variant="filled"
+              sx={{ width: "100%" }}
+            >
+              {errorMsg}
+            </Alert>
+          </Snackbar>
+        </Box>
       </Box>
     </ThemeProvider>
   );
 }
-return (
-  <ThemeProvider theme={theme}>
-    {/* CssBaseline resets and normalizes CSS for Material UI */}
-    <CssBaseline />
-    {/* Main container box with full viewport height and flexbox layout */}
-    <Box
-      sx={{
-        height: "100vh",
-        display: "flex",
-        fontFamily: "'Segoe UI', Tahoma, Verdana",
-      }}
-    >
-      {/* Sidebar container */}
-      <Box
-        sx={{
-          width: isMobile ? "100%" : 320, // Full width on mobile, fixed on desktop
-          borderRight: 1,
-          borderColor: "divider",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Top AppBar with title and action icons */}
-        <AppBar position="static" sx={{ bgcolor: "primary.main" }}>
-          <Toolbar>
-            {/* App title text */}
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              Chat
-            </Typography>
-            {/* Dark mode toggle button with tooltip */}
-            <Tooltip
-              title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            >
-              <IconButton
-                color="inherit"
-                size="large"
-                onClick={() => setDarkMode((v) => !v)}
-                aria-label="Toggle dark mode"
-              >
-                {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
-              </IconButton>
-            </Tooltip>
-            {/* Button to open new chat dialog */}
-            <Tooltip title="New Chat">
-              <IconButton
-                color="inherit"
-                size="large"
-                onClick={() => setNewUserDialogOpen(true)}
-                aria-label="Start new chat"
-              >
-                <AddIcon />
-              </IconButton>
-            </Tooltip>
-          </Toolbar>
-        </AppBar>
-
-        {/* Search input in sidebar */}
-        <Box sx={{ px: 1, py: 0.5 }}>
-          <TextField
-            fullWidth
-            placeholder="Search or start chat"
-            size="small"
-            variant="outlined"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="disabled" />
-                </InputAdornment>
-              ),
-            }}
-            aria-label="Search chats"
-          />
-        </Box>
-
-        <Divider />
-
-        {/* List of chats/contacts */}
-        <List sx={{ flexGrow: 1, overflowY: "auto" }} aria-label="Chat list">
-          {allContacts.map((user) => (
-            <ChatItem
-              key={user.waId}
-              user={user}
-              selected={user.waId === selectedUser}
-              onSelect={() => setSelectedUser(user.waId)}
-              onDelete={() => {
-                if (window.confirm("Delete chat?")) {
-                  fetch(`${API_BASE_URL}/api/users/${user.waId}`, {
-                    method: "DELETE",
-                  })
-                    .then((res) => {
-                      if (!res.ok) throw new Error("Delete failed");
-                      setUsers((old) =>
-                        old.filter((u) => u.waId !== user.waId)
-                      );
-                      if (selectedUser === user.waId) {
-                        setSelectedUser(null);
-                        setMessages([]);
-                      }
-                    })
-                    .catch((e) => setErrorMsg(e.toString()));
-                }
-              }}
-              lastMessage={user.lastMessage}
-              unread={getUnreadCount(user.waId)}
-              theme={theme}
-            />
-          ))}
-        </List>
-      </Box>
-
-      {/* Chat panel container */}
-      <Box
-        sx={{
-          flexGrow: 1,
-          display: isMobile && !selectedUser ? "none" : "flex", // Hide on mobile if no chat selected
-          flexDirection: "column",
-          bgcolor: "background.default",
-        }}
-        onClick={() => setSelectedMsgId(null)} // Clicking outside message deselects it
-        aria-live="polite"
-      >
-        {/* Chat header with back button and name */}
-        <Box
-          sx={{
-            bgcolor: "background.paper",
-            borderBottom: 1,
-            borderColor: "divider",
-            display: "flex",
-            alignItems: "center",
-            px: 2,
-            py: 1,
-            gap: 1,
-          }}
-        >
-          {isMobile && (
-            <IconButton
-              onClick={() => setSelectedUser(null)}
-              size="large"
-              aria-label="Back to chats"
-            >
-              <CloseIcon />
-            </IconButton>
-          )}
-          <Typography
-            sx={{
-              flexGrow: 1,
-              fontWeight: "bold",
-              fontSize: 20,
-              userSelect: "none",
-              color: theme.palette.text.primary,
-            }}
-            aria-label="Current chat name"
-          >
-            {selectedUser
-              ? allContacts.find((c) => c.waId === selectedUser)?.name ||
-                selectedUser
-              : "Select a chat"}
-          </Typography>
-
-          {/* Call buttons (disabled - premium) with tooltips */}
-          <Tooltip title="Voice Call (Premium)">
-            <IconButton
-              disabled={!selectedUser}
-              color="inherit"
-              onClick={() => setPremiumAlertOpen(true)}
-              aria-label="Voice call premium"
-            >
-              <CallIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Video Call (Premium)">
-            <IconButton
-              disabled={!selectedUser}
-              color="inherit"
-              onClick={() => setPremiumAlertOpen(true)}
-              aria-label="Video call premium"
-            >
-              <VideocamIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-
-        {/* Creator credit */}
-        <Box
-          sx={{
-            py: 1,
-            textAlign: "center",
-            userSelect: "none",
-            color: darkMode ? "rgba(129,169,219,0.7)" : "rgba(23,162,184,0.7)",
-            fontSize: 12,
-          }}
-        >
-          Created by <strong>Devingle (Amit Ghanata)</strong>
-        </Box>
-
-        {/* Messages container - scrollable list */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            overflowY: "auto",
-            px: 2,
-            position: "relative",
-          }}
-          onClick={(e) => e.stopPropagation()} // Prevent deselect on message click
-          aria-label="Messages"
-        >
-          {!selectedUser ? (
-            // Prompt to choose a chat if none selected
-            <Typography
-              sx={{ mt: 15, textAlign: "center", color: "text.secondary" }}
-            >
-              Select a chat to start messaging
-            </Typography>
-          ) : currentMessages.length === 0 ? (
-            lastMsgSelected ? (
-              // Show last message preview if chat is empty
-              <Paper
-                sx={{
-                  mx: "auto",
-                  mt: 20,
-                  maxWidth: 400,
-                  p: 3,
-                  borderRadius: 2,
-                  bgcolor: "background.paper",
-                  color: theme.palette.primary.main,
-                  textAlign: "center",
-                }}
-              >
-                <Typography variant="subtitle2" gutterBottom>
-                  Last message:
-                </Typography>
-                <Typography>
-                  {lastMsgSelected.text && lastMsgSelected.text.trim() !== ""
-                    ? lastMsgSelected.text.length > 120
-                      ? lastMsgSelected.text.slice(0, 120) + "…"
-                      : lastMsgSelected.text
-                    : lastMsgSelected.type === "image"
-                    ? "📷 Photo"
-                    : lastMsgSelected.type === "audio"
-                    ? "🎵 Audio"
-                    : lastMsgSelected.type === "file"
-                    ? `📄 ${lastMsgSelected.fileName || "File"}`
-                    : ""}
-                </Typography>
-              </Paper>
-            ) : (
-              // Show no messages text if no chat messages exist
-              <Typography
-                sx={{ mt: 20, textAlign: "center", color: "text.secondary" }}
-              >
-                No messages
-              </Typography>
-            )
-          ) : (
-            // Render list of messages grouped by date
-            <MessageListWithDates
-              messages={currentMessages}
-              theme={theme}
-              onDelete={deleteMessage}
-              selectedMsgId={selectedMsgId}
-              setSelectedMsgId={setSelectedMsgId}
-            />
-          )}
-
-          {/* Invisible div to scroll to bottom */}
-          <div ref={messagesEndRef} />
-
-          {/* Typing indicator */}
-          {typingUser && (
-            <Typography
-              sx={{ pl: 1, fontStyle: "italic", color: "text.secondary" }}
-              aria-live="polite"
-              aria-atomic="true"
-            >
-              {typingUser}
-            </Typography>
-          )}
-        </Box>
-
-        {/* Message input area */}
-        {selectedUser && (
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1,
-              py: 1,
-              borderTop: 1,
-              borderColor: "divider",
-              bgcolor: "background.paper",
-            }}
-            onClick={(e) => e.stopPropagation()} // Prevent deselect on input click
-          >
-            {/* Hidden file input triggered by attach button */}
-            <input
-              type="file"
-              hidden
-              ref={fileInputRef}
-              accept="image/*,audio/*,.zip,.rar,.pdf,.doc,.docx,.txt"
-              onChange={handleFile}
-              aria-label="Attach file"
-            />
-            {/* Attach file button */}
-            <Tooltip title="Attach file or media">
-              <IconButton
-                color="primary"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach file or media"
-              >
-                <AttachFileIcon />
-              </IconButton>
-            </Tooltip>
-            {/* Text field for typing message */}
-            <TextField
-              multiline
-              variant="outlined"
-              placeholder="Type a message"
-              fullWidth
-              value={sendingText}
-              onChange={(e) => setSendingText(e.target.value)}
-              maxRows={6}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              aria-label="Type your message"
-            />
-            {/* Voice message button (premium) */}
-            <Tooltip title="Record voice message (Premium)">
-              <IconButton
-                color="primary"
-                onClick={() => setPremiumAlertOpen(true)}
-                aria-label="Voice message premium"
-              >
-                <KeyboardVoiceIcon />
-              </IconButton>
-            </Tooltip>
-            {/* Send message button */}
-            <Tooltip title="Send message">
-              <IconButton
-                disabled={!sendingText.trim()}
-                color="primary"
-                onClick={() => sendMessage()}
-                aria-label="Send message"
-              >
-                <SendIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        )}
-
-        {/* Dialog to start a new chat */}
-        <Dialog
-          open={newUserDialogOpen}
-          onClose={() => setNewUserDialogOpen(false)}
-          aria-labelledby="start-new-chat-dialog"
-        >
-          <DialogTitle id="start-new-chat-dialog">Start New Chat</DialogTitle>
-          <DialogContent>
-            <TextField
-              autoFocus
-              fullWidth
-              label="WhatsApp ID"
-              variant="outlined"
-              placeholder="Enter WhatsApp ID"
-              value={newUserInput}
-              onChange={(e) => setNewUserInput(e.target.value)}
-              aria-label="Enter WhatsApp ID"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setNewUserDialogOpen(false)}>Cancel</Button>
-            <Button
-              disabled={!newUserInput.trim()}
-              variant="contained"
-              onClick={addNewChat}
-              aria-disabled={!newUserInput.trim()}
-            >
-              Start Chat
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Snackbar popup for premium feature alert */}
-        <Snackbar
-          open={premiumAlertOpen}
-          autoHideDuration={2500}
-          onClose={() => setPremiumAlertOpen(false)}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert
-            onClose={() => setPremiumAlertOpen(false)}
-            severity="info"
-            sx={{ width: "100%" }}
-          >
-            Please buy premium version to use this feature.
-          </Alert>
-        </Snackbar>
-
-        {/* Snackbar popup for error messages */}
-        <Snackbar
-          open={!!errorMsg}
-          autoHideDuration={4000}
-          onClose={() => setErrorMsg("")}
-          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        >
-          <Alert
-            onClose={() => setErrorMsg("")}
-            severity="error"
-            variant="filled"
-            sx={{ width: "100%" }}
-          >
-            {errorMsg}
-          </Alert>
-        </Snackbar>
-      </Box>
-    </Box>
-  </ThemeProvider>
-);
