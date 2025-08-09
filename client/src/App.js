@@ -52,7 +52,8 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 
-const API_BASE_URL = "http://localhost:3000";
+// Use environment variable, fallback to local for development
+const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
 // Utility functions
 const getInitials = (name, waId) =>
@@ -473,7 +474,7 @@ export default function App() {
   }, [messages, selectedUser]);
 
   useEffect(() => {
-    const socket = io(API_BASE_URL, { transports: ["websocket"] });
+    const socket = io(API_BASE_URL || "/", { transports: ["websocket"] });
 
     socket.on("message_status_updated", (updatedMsg) => {
       setMessages((oldMessages) =>
