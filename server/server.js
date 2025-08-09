@@ -20,13 +20,7 @@ const DB_NAME = "whatsapp";
 const COLLECTION_NAME = "processed_messages";
 const PAYLOADS_DIR = path.join(__dirname, "payloads");
 
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL || "*",
-    methods: ["GET", "POST", "DELETE"],
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
 let collection;
@@ -45,19 +39,6 @@ io.on("connection", (socket) => {
   socket.on("typing", (waId) => {
     socket.broadcast.emit("typing", waId);
   });
-});
-
-// 📂 Serve frontend build (React/Vue/etc.)
-const frontendPath = path.join(__dirname, "frontend-build");
-app.use(express.static(frontendPath));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
-// Handle client-side routing
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // ✅ FIXED: Return last message details (type/text/fileName/timestamp) for each chat
