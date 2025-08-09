@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build:full": "cd frontend && npm run build && rm -rf ../server/frontend-build && mkdir ../server/frontend-build && cp -r build/* ../server/frontend-build/",
+    "deploy": "npm run build:full && cd server && git add frontend-build && git commit -m \"Deploy: update frontend build\" && git push"
+  }
+}
