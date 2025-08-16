@@ -194,3 +194,9 @@ This project is open source and free to use.
 ## Author
 
 Created by Devingle (Amit Ghanata)
+
+## Live Project Link
+
+```
+https://whats-app-like-web-clone.vercel.app/
+```
