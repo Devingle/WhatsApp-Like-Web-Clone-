@@ -197,6 +197,8 @@ Created by Devingle (Amit Ghanata)
 
 ## Live Project Link
 
+It may take some time to render the data so wait patiently and refresh after 10sec.
+
 ```
 https://whats-app-like-web-clone.vercel.app/
 ```
