@@ -1,0 +1,31 @@
+{
+  "metaData": {
+    "entry": [
+      {
+        "changes": [
+          {
+            "value": {
+              "messages": [
+                {
+                  "id": "msg-1693241520000-emp001",
+                  "from": "Employer",
+                  "timestamp": 1693241520000,
+                  "text": {
+                    "body": "It seems you want to be treated more like a CEO than an employee. Showing this project will surely impress everyone."
+                  },
+                  "type": "text"
+                }
+              ],
+              "contacts": [
+                {
+                  "wa_id": "Employer",
+                  "profile": { "name": "Employer" }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
