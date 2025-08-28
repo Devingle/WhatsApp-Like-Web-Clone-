@@ -6,6 +6,8 @@ import React, {
   useCallback,
 } from "react";
 import { io } from "socket.io-client";
+
+// Importing Material UI components and icons for UI design
 import {
   AppBar,
   Toolbar,
@@ -52,9 +54,12 @@ import {
   Delete as DeleteIcon,
 } from "@mui/icons-material";
 
+// Base URL for backend API calls, loaded from environment variables
 const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
-// Utility functions
+// ========== Helper Functions ===========
+
+// Computes initials from user name or fallback from waId
 const getInitials = (name, waId) =>
   name
     ? name
@@ -67,6 +72,7 @@ const getInitials = (name, waId) =>
     ? waId.slice(-2).toUpperCase()
     : "NA";
 
+// Converts a string (waId) to a consistent background color for avatars
 const stringToColor = (str = "") => {
   let hash = 0;
   for (let i = 0; i < str.length; i++)
@@ -79,6 +85,7 @@ const stringToColor = (str = "") => {
   );
 };
 
+// Formats the timestamp for sidebar (shows time if today, "Yesterday", or date)
 const formatSidebarDateOrTime = (ts) => {
   if (!ts) return "";
   const date = new Date(ts);
@@ -96,6 +103,8 @@ const formatSidebarDateOrTime = (ts) => {
   }
   return date.toLocaleDateString();
 };
+
+// Formats just the time part (hours and minutes)
 const formatTimeOnly = (ts) => {
   if (!ts) return "";
   const date = new Date(ts);
@@ -106,7 +115,9 @@ const formatTimeOnly = (ts) => {
   });
 };
 
+// Component showing ticks representing message status (sent, delivered, read)
 const StatusTick = ({ status }) => {
+  // Map statuses to tick symbols and colors
   const map = {
     sent: { tick: "✓", color: "gray" },
     delivered: { tick: "✓✓", color: "#2196f3" },
@@ -124,12 +135,14 @@ const StatusTick = ({ status }) => {
   );
 };
 
+// Avatar component showing user initials with colored background
 const UserAvatar = ({ name, waId }) => (
   <Avatar sx={{ bgcolor: stringToColor(waId), userSelect: "none" }}>
     {getInitials(name, waId)}
   </Avatar>
 );
 
+// ====== Chat list item representing a user/conversation on sidebar ======
 function ChatItem({
   user,
   lastMessage,
@@ -139,9 +152,11 @@ function ChatItem({
   onDelete,
   theme,
 }) {
+  // For showing the "Options" menu on each chat item
   const [menuAnchor, setMenuAnchor] = useState(null);
   const open = Boolean(menuAnchor);
   const accentColor = theme.palette.mode === "dark" ? "#81a9db" : "#222";
+
   return (
     <>
       <ListItem
@@ -200,7 +215,7 @@ function ChatItem({
           <IconButton
             size="small"
             onClick={(e) => {
-              e.stopPropagation();
+              e.stopPropagation(); // Prevents selecting chat when opening menu
               setMenuAnchor(e.currentTarget);
             }}
           >
@@ -208,6 +223,7 @@ function ChatItem({
           </IconButton>
         </Tooltip>
       </ListItem>
+      {/* Menu for additional chat options (like delete) */}
       <Menu
         anchorEl={menuAnchor}
         open={open}
@@ -231,9 +247,11 @@ function ChatItem({
   );
 }
 
+// ======= Single Message Bubble in Chat Panel =======
 function Message({ msg, theme, onDelete, selected, onSelect }) {
-  const isOwn = msg.from === "me";
+  const isOwn = msg.from === "me"; // Different styles if message is from self
   const timeStr = formatTimeOnly(msg.timestamp);
+
   return (
     <Box
       sx={{
@@ -262,6 +280,7 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
           position: "relative",
         }}
       >
+        {/* Show media if message type is image/audio/file */}
         {msg.type === "image" && msg.fileUrl && (
           <img
             src={msg.fileUrl}
@@ -291,9 +310,11 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
             </a>
           </Box>
         )}
+        {/* Show text content if present */}
         {(!msg.type || msg.type === "text") && (
           <Typography sx={{ whiteSpace: "pre-wrap" }}>{msg.text}</Typography>
         )}
+        {/* Timestamp and status ticks for own messages */}
         <Box
           sx={{
             textAlign: "right",
@@ -308,6 +329,7 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
         >
           <Typography component="span">{timeStr}</Typography>
           {isOwn && <StatusTick status={msg.status} />}
+          {/* Delete icon only visible on own selected messages */}
           {isOwn && selected && (
             <Tooltip title="Delete this message">
               <IconButton
@@ -328,6 +350,7 @@ function Message({ msg, theme, onDelete, selected, onSelect }) {
   );
 }
 
+// ===== Renders list of messages split by date labels like Today, Yesterday =====
 function MessageListWithDates({
   messages,
   theme,
@@ -342,6 +365,7 @@ function MessageListWithDates({
     const showDate = lastDate !== msgDateStr;
     lastDate = msgDateStr;
 
+    // Friendly labels for date
     let dateLabel = msgDateStr;
     const todayStr = new Date().toDateString();
     const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
@@ -379,7 +403,9 @@ function MessageListWithDates({
   });
 }
 
+// =============== Main App Component ===============
 export default function App() {
+  // App state variables for users, messages, selected chat, input, errors, etc.
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -394,15 +420,18 @@ export default function App() {
   const [premiumAlertOpen, setPremiumAlertOpen] = useState(false);
   const [selectedMsgId, setSelectedMsgId] = useState(null);
 
+  // Refs for file input, message scrolling, and selectedUser persistence
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const selectedUserRef = useRef(selectedUser);
   const isMobile = useMediaQuery("(max-width:600px)");
 
+  // Keep ref updated to avoid stale closure issues inside socket event handlers
   useEffect(() => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
+  // Dynamic theme (dark/light mode) for Material UI components
   const theme = useMemo(() => {
     return createTheme({
       palette: {
@@ -422,16 +451,18 @@ export default function App() {
     });
   }, [darkMode]);
 
+  // Helper to filter duplicate messages by message_id
   const filterUniqueMessages = useCallback((msgs) => {
     const existingIds = new Set();
     return msgs.filter((m) => {
-      if (!m.message_id) return true;
-      if (existingIds.has(m.message_id)) return false;
+      if (!m.message_id) return true; // keep if no id
+      if (existingIds.has(m.message_id)) return false; // remove duplicates
       existingIds.add(m.message_id);
       return true;
     });
   }, []);
 
+  // Load users from backend on app start
   useEffect(() => {
     async function fetchUsers() {
       try {
@@ -439,6 +470,7 @@ export default function App() {
         if (!res.ok) throw new Error("Failed to fetch users");
         const data = await res.json();
         setUsers(data);
+        // Select first user if none selected
         if (!selectedUser && data.length)
           setSelectedUser(data[0].waId || data[0].wa_id);
       } catch (e) {
@@ -448,7 +480,7 @@ export default function App() {
     fetchUsers();
   }, []);
 
-  // Always refetch messages from backend on chat switch
+  // Load messages of selected user whenever selection changes
   useEffect(() => {
     if (!selectedUser) {
       setMessages([]);
@@ -468,13 +500,16 @@ export default function App() {
     fetchMessages();
   }, [selectedUser, filterUniqueMessages]);
 
+  // Scroll to bottom when messages or selected user changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedUser]);
 
+  // Setup socket connection + event listeners for realtime updates
   useEffect(() => {
     const socket = io(API_BASE_URL, { transports: ["websocket"] });
 
+    // Update message status in UI (delivered/read)
     socket.on("message_status_updated", (updatedMsg) => {
       setMessages((oldMessages) =>
         oldMessages.map((msg) =>
@@ -485,16 +520,18 @@ export default function App() {
       );
     });
 
+    // Remove deleted messages from UI
     socket.on("message_deleted", (deletedMessageId) => {
       setMessages((old) =>
         old.filter((m) => m.message_id !== deletedMessageId)
       );
     });
 
+    // Add new message to UI if relevant
     socket.on("new_message", (msg) => {
       setMessages((oldMessages) => {
         const ids = new Set(oldMessages.map((m) => m.message_id));
-        if (ids.has(msg.message_id)) return oldMessages;
+        if (ids.has(msg.message_id)) return oldMessages; // skip duplicates
         if (msg.waId === selectedUserRef.current) {
           setLastSeenMap((old) => ({
             ...old,
@@ -505,6 +542,7 @@ export default function App() {
         return oldMessages;
       });
 
+      // Update users list last message preview and timestamp
       setUsers((oldUsers) => {
         const idx = oldUsers.findIndex((u) => u.waId === msg.waId);
         if (idx !== -1) {
@@ -532,6 +570,7 @@ export default function App() {
       });
     });
 
+    // Show typing indicator for selected user
     socket.on("typing", (waId) => {
       if (waId === selectedUserRef.current) {
         setTypingUser("Typing...");
@@ -539,11 +578,13 @@ export default function App() {
       }
     });
 
+    // Cleanup socket on unmount
     return () => {
       socket.disconnect();
     };
   }, []);
 
+  // Delete message API call and update UI on success
   function deleteMessage(messageId) {
     fetch(`${API_BASE_URL}/api/messages/${messageId}`, {
       method: "DELETE",
@@ -556,6 +597,7 @@ export default function App() {
       .catch((e) => setErrorMsg(e.toString()));
   }
 
+  // Count unread messages by comparing timestamps with last seen
   const getUnreadCount = (waId) => {
     const lastSeen = lastSeenMap[waId] || 0;
     return messages.filter(
@@ -563,7 +605,7 @@ export default function App() {
     ).length;
   };
 
-  // 🚀 SIDEBAR: Always uses backend-provided fields, fallback to local if needed
+  // Compose sidebar contacts list from both users and message data
   const allContacts = useMemo(() => {
     const ids = new Set([
       ...users.map((u) => u.waId || u.wa_id),
@@ -579,6 +621,7 @@ export default function App() {
         let lastMsgPreview = "";
         let lastMsgTimestamp = u.lastMessageTimestamp || 0;
 
+        // Use last message fields if available (from backend)
         if (
           "lastMessageType" in u ||
           "lastMessageText" in u ||
@@ -594,6 +637,7 @@ export default function App() {
           if (typeof u.lastMessageTimestamp === "number")
             lastMsgTimestamp = u.lastMessageTimestamp;
         } else {
+          // Or fallback to local message data to determine last message preview
           const lastMsg = messages
             .filter((m) => m.waId === waId)
             .reduce((a, b) => (a.timestamp > b.timestamp ? a : b), {
@@ -627,6 +671,7 @@ export default function App() {
       .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
   }, [users, messages, searchTerm]);
 
+  // Messages of currently selected user sorted by time ascending
   const currentMessages = useMemo(
     () =>
       messages
@@ -635,12 +680,16 @@ export default function App() {
     [messages, selectedUser]
   );
 
+  // Last message object for the selected chat (or null if none)
   const lastMsgSelected = currentMessages.length
     ? currentMessages[currentMessages.length - 1]
     : null;
 
+  // Send message handler
   function sendMessage(extra = null) {
     if ((!sendingText.trim() && !extra) || !selectedUser) return;
+
+    // Temp ID for optimistic UI update (before backend response)
     const tempId = `temp-${Date.now()}`;
     const payload = {
       waId: selectedUser,
@@ -657,9 +706,13 @@ export default function App() {
       status: "sent",
       createdAt: new Date(),
     };
+
+    // Add temp message locally for instant UI feedback
     setMessages((old) => filterUniqueMessages([...old, tempMsg]));
     setSendingText("");
     setSelectedMsgId(null);
+
+    // Send to backend API
     fetch(`${API_BASE_URL}/api/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -679,21 +732,25 @@ export default function App() {
       .catch((e) => setErrorMsg(e.toString()));
   }
 
+  // Handles file input upload and reads file as base64 url for sending
   function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Determine media type to send along with file
     const type = file.type.startsWith("image/")
       ? "image"
       : file.type.startsWith("audio/")
       ? "audio"
       : "file";
     const reader = new FileReader();
+    // Send message after file read completes (as data URL)
     reader.onload = (ev) =>
       sendMessage({ type, fileUrl: ev.target.result, fileName: file.name });
     reader.readAsDataURL(file);
-    e.target.value = null;
+    e.target.value = null; // reset file input
   }
 
+  // Adds a new chat (new user) to the list and selects it
   function addNewChat() {
     const id = newUserInput.trim();
     if (!id) return;
@@ -710,6 +767,7 @@ export default function App() {
     setNewUserDialogOpen(false);
   }
 
+  // ======================= JSX rendering =======================
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -720,7 +778,7 @@ export default function App() {
           fontFamily: "'Segoe UI', Tahoma, Verdana",
         }}
       >
-        {/* Sidebar */}
+        {/* Sidebar containing list of chats */}
         <Box
           sx={{
             width: isMobile ? "100%" : 320,
@@ -730,11 +788,13 @@ export default function App() {
             flexDirection: "column",
           }}
         >
+          {/* Header bar with title, theme toggle, and new chat button */}
           <AppBar position="static" sx={{ bgcolor: "primary.main" }}>
             <Toolbar>
               <Typography variant="h6" sx={{ flexGrow: 1 }}>
                 Chat
               </Typography>
+              {/* Toggle light/dark mode */}
               <Tooltip
                 title={
                   darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"
@@ -748,6 +808,7 @@ export default function App() {
                   {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
                 </IconButton>
               </Tooltip>
+              {/* Add new chat button */}
               <Tooltip title="New Chat">
                 <IconButton
                   color="inherit"
@@ -759,6 +820,7 @@ export default function App() {
               </Tooltip>
             </Toolbar>
           </AppBar>
+          {/* Search bar for filtering chats */}
           <Box sx={{ px: 1, py: 0.5 }}>
             <TextField
               fullWidth
@@ -777,6 +839,7 @@ export default function App() {
             />
           </Box>
           <Divider />
+          {/* List of chats */}
           <List sx={{ flexGrow: 1, overflowY: "auto" }}>
             {allContacts.map((user) => (
               <ChatItem
@@ -809,7 +872,8 @@ export default function App() {
             ))}
           </List>
         </Box>
-        {/* Chat Panel */}
+
+        {/* Chat panel for message conversation */}
         <Box
           sx={{
             flexGrow: 1,
@@ -817,8 +881,9 @@ export default function App() {
             flexDirection: "column",
             bgcolor: "background.default",
           }}
-          onClick={() => setSelectedMsgId(null)}
+          onClick={() => setSelectedMsgId(null)} // Clicking outside deselect message
         >
+          {/* Header with back button on mobile, chat name, call buttons */}
           <Box
             sx={{
               bgcolor: "background.paper",
@@ -854,6 +919,7 @@ export default function App() {
                   selectedUser
                 : "Select a chat"}
             </Typography>
+            {/* Call buttons disabled if no user selected */}
             <Tooltip title="Voice Call (Premium)">
               <IconButton
                 disabled={!selectedUser}
@@ -873,6 +939,8 @@ export default function App() {
               </IconButton>
             </Tooltip>
           </Box>
+
+          {/* Footer with app creator credit */}
           <Box
             sx={{
               py: 1,
@@ -885,6 +953,8 @@ export default function App() {
           >
             Created by <strong>Devingle (Amit Ghanata)</strong>
           </Box>
+
+          {/* Main message list or placeholder if no chat selected */}
           <Box
             sx={{
               flexGrow: 1,
@@ -948,6 +1018,7 @@ export default function App() {
               />
             )}
             <div ref={messagesEndRef} />
+            {/* Show typing indicator */}
             {typingUser && (
               <Typography
                 sx={{ pl: 1, fontStyle: "italic", color: "text.secondary" }}
@@ -956,6 +1027,8 @@ export default function App() {
               </Typography>
             )}
           </Box>
+
+          {/* Input area to send text or media */}
           {selectedUser && (
             <Box
               sx={{
@@ -968,8 +1041,9 @@ export default function App() {
                 borderColor: "divider",
                 bgcolor: "background.paper",
               }}
-              onClick={(e) => e.stopPropagation()} // Prevents deselection when using input
+              onClick={(e) => e.stopPropagation()} // Prevents deselection on click
             >
+              {/* Hidden file input for attachments */}
               <input
                 type="file"
                 hidden
@@ -977,6 +1051,7 @@ export default function App() {
                 accept="image/*,audio/*,.zip,.rar,.pdf,.doc,.docx,.txt"
                 onChange={handleFile}
               />
+              {/* Attach file button */}
               <Tooltip title="Attach file or media">
                 <IconButton
                   color="primary"
@@ -985,6 +1060,8 @@ export default function App() {
                   <AttachFileIcon />
                 </IconButton>
               </Tooltip>
+
+              {/* Message input text area */}
               <TextField
                 multiline
                 variant="outlined"
@@ -1000,6 +1077,8 @@ export default function App() {
                   }
                 }}
               />
+
+              {/* Disabled premium voice record button */}
               <Tooltip title="Record voice message (Premium)">
                 <IconButton
                   color="primary"
@@ -1008,6 +1087,8 @@ export default function App() {
                   <KeyboardVoiceIcon />
                 </IconButton>
               </Tooltip>
+
+              {/* Send button enabled only if input not empty */}
               <Tooltip title="Send message">
                 <IconButton
                   disabled={!sendingText.trim()}
@@ -1019,6 +1100,8 @@ export default function App() {
               </Tooltip>
             </Box>
           )}
+
+          {/* Dialog to start a new chat by entering a WhatsApp ID */}
           <Dialog
             open={newUserDialogOpen}
             onClose={() => setNewUserDialogOpen(false)}
@@ -1048,6 +1131,8 @@ export default function App() {
               </Button>
             </DialogActions>
           </Dialog>
+
+          {/* Snackbar alerts for premium feature notice */}
           <Snackbar
             open={premiumAlertOpen}
             autoHideDuration={2500}
@@ -1058,6 +1143,8 @@ export default function App() {
               Please buy premium version to use this feature.
             </Alert>
           </Snackbar>
+
+          {/* Snackbar alert for showing error messages */}
           <Snackbar
             open={!!errorMsg}
             autoHideDuration={4000}
